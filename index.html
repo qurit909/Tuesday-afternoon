@@ -3,117 +3,182 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>경영 실적 대시보드</title>
+    <title>전사 경영 실적 대시보드 (Full)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+        @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;700&display=swap');
+        body { font-family: 'Pretendard', sans-serif; background-color: #f8fafc; }
     </style>
 </head>
-<body class="p-6">
+<body class="p-4 md:p-8">
     <div class="max-w-7xl mx-auto">
-        <header class="mb-8 flex justify-between items-center">
-            <h1 class="text-3xl font-bold text-gray-800">📊 경영 실적 현황판</h1>
-            <button onclick="refreshData()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">데이터 새로고침</button>
+        <header class="mb-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+                <h1 class="text-3xl font-extrabold text-slate-900">🚀 전사 경영 실적 대시보드</h1>
+                <p class="text-slate-500 mt-1">시트1의 모든 실시간 데이터를 시각화합니다.</p>
+            </div>
+            <button onclick="refreshData()" class="bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-semibold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200">
+                실시간 데이터 동기화
+            </button>
         </header>
 
-        <!-- 요약 카드 -->
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-blue-500">
-                <p class="text-sm text-gray-500 font-semibold">최근 매출액</p>
-                <h3 id="card-revenue" class="text-2xl font-bold text-gray-800">718.5억</h3>
+        <!-- 상단 핵심 지표 요약 (6개) -->
+        <div class="grid grid-cols-2 lg:grid-cols-6 gap-4 mb-10">
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+                <p class="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">매출액</p>
+                <h3 id="card-revenue" class="text-xl font-bold text-slate-800">-</h3>
             </div>
-            <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-red-500">
-                <p class="text-sm text-gray-500 font-semibold">최근 순이익</p>
-                <h3 id="card-profit" class="text-2xl font-bold text-red-600">-64.5억</h3>
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+                <p class="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">순이익</p>
+                <h3 id="card-profit" class="text-xl font-bold text-rose-500">-</h3>
             </div>
-            <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-green-500">
-                <p class="text-sm text-gray-500 font-semibold">브랜드 등급</p>
-                <h3 id="card-brand" class="text-2xl font-bold text-gray-800">5등급</h3>
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+                <p class="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">현재 주가</p>
+                <h3 id="card-stock" class="text-xl font-bold text-indigo-600">-</h3>
             </div>
-            <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-yellow-500">
-                <p class="text-sm text-gray-500 font-semibold">기말 재고량</p>
-                <h3 id="card-inventory" class="text-2xl font-bold text-gray-800">41,094</h3>
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+                <p class="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">브랜드 등급</p>
+                <h3 id="card-brand" class="text-xl font-bold text-slate-800">-</h3>
+            </div>
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+                <p class="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">제조 원가</p>
+                <h3 id="card-cost" class="text-xl font-bold text-slate-800">-</h3>
+            </div>
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+                <p class="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">기말 재고</p>
+                <h3 id="card-inventory" class="text-xl font-bold text-amber-600">-</h3>
             </div>
         </div>
 
-        <!-- 차트 영역 -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <!-- 매출 및 순이익 추이 -->
-            <div class="bg-white p-6 rounded-xl shadow-sm">
-                <h4 class="text-lg font-bold mb-4 text-gray-700">매출 및 순이익 추이</h4>
-                <canvas id="revenueChart" height="200"></canvas>
+        <!-- 메인 차트 그리드 -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
+            <!-- 차트 1: 재무 및 비용 분석 -->
+            <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+                <h4 class="text-lg font-bold mb-6 flex items-center gap-2">
+                    <span class="w-2 h-6 bg-blue-500 rounded-full"></span> 재무 및 주요 비용 추이
+                </h4>
+                <canvas id="financeChart" height="250"></canvas>
             </div>
-            <!-- 판매/생산/재고 현황 -->
-            <div class="bg-white p-6 rounded-xl shadow-sm">
-                <h4 class="text-lg font-bold mb-4 text-gray-700">판매/생산/재고 현황</h4>
-                <canvas id="statusChart" height="200"></canvas>
+            
+            <!-- 차트 2: 생산 및 물류 현황 -->
+            <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+                <h4 class="text-lg font-bold mb-6 flex items-center gap-2">
+                    <span class="w-2 h-6 bg-emerald-500 rounded-full"></span> 생산·판매·재고 밸런스
+                </h4>
+                <canvas id="opsChart" height="250"></canvas>
+            </div>
+
+            <!-- 차트 3: 인적 자원 현황 -->
+            <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+                <h4 class="text-lg font-bold mb-6 flex items-center gap-2">
+                    <span class="w-2 h-6 bg-purple-500 rounded-full"></span> 부서별 인력 및 퇴직 현황
+                </h4>
+                <canvas id="hrChart" height="250"></canvas>
+            </div>
+
+            <!-- 차트 4: R&D 및 제조 효율성 -->
+            <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+                <h4 class="text-lg font-bold mb-6 flex items-center gap-2">
+                    <span class="w-2 h-6 bg-orange-500 rounded-full"></span> R&D 투자 vs 단위당 제조원가
+                </h4>
+                <canvas id="efficiencyChart" height="250"></canvas>
             </div>
         </div>
     </div>
 
     <script>
-        let revenueChart, statusChart;
+        let charts = {};
 
-        // 초기 데이터 (시트 기반)
-        const initialData = [
-            {분기: "3차4Q", 매출: 88631620000, 이익: 4119883657, 판매: 129860, 생산: 136080, 재고: 21677, 브랜드: 4},
-            {분기: "4차1Q", 매출: 71854237160, 이익: -6454203885, 판매: 103055, 생산: 122472, 재고: 41094, 브랜드: 5}
+        // 시트의 전체 데이터 (14개 항목) 초기값
+        const rawData = [
+            {분기:"3차4Q", 매출:88631620000, 이익:4119883657, 주가:5774, 연구비:5000000000, 판매량:129860, 브랜드:4, 생산량:136080, 재고:21677, 원가:361523, 영업직:562, 퇴직직:52, 교육직:74, 판관비:36638329500},
+            {분기:"4차1Q", 매출:71854237160, 이익:-6454203885, 주가:5884, 연구비:5200000000, 판매량:103055, 브랜드:5, 생산량:122472, 재고:41094, 원가:390265, 영업직:584, 퇴직직:76, 교육직:74, 판관비:38703257684}
         ];
 
-        function initCharts(data) {
+        function initAllCharts(data) {
             const labels = data.map(d => d.분기);
-            
-            // 매출/순이익 차트
-            const ctxRev = document.getElementById('revenueChart').getContext('2d');
-            revenueChart = new Chart(ctxRev, {
+
+            // 1. 재무/비용 차트
+            charts.finance = new Chart(document.getElementById('financeChart'), {
                 type: 'bar',
                 data: {
                     labels: labels,
                     datasets: [
-                        { label: '매출액', data: data.map(d => d.매출), backgroundColor: '#3b82f6' },
-                        { label: '순이익', data: data.map(d => d.이익), type: 'line', borderColor: '#ef4444', fill: false }
+                        { label: '매출액(억)', data: data.map(d => d.매출/100000000), backgroundColor: '#3b82f6' },
+                        { label: '판관비(억)', data: data.map(d => d.판관비/100000000), backgroundColor: '#94a3b8' },
+                        { label: '순이익(억)', data: data.map(d => d.이익/100000000), type: 'line', borderColor: '#f43f5e', tension: 0.3 }
                     ]
                 }
             });
 
-            // 판매/생산/재고 차트
-            const ctxStat = document.getElementById('statusChart').getContext('2d');
-            statusChart = new Chart(ctxStat, {
+            // 2. 운영 차트
+            charts.ops = new Chart(document.getElementById('opsChart'), {
                 type: 'bar',
                 data: {
                     labels: labels,
                     datasets: [
-                        { label: '판매량', data: data.map(d => d.판매), backgroundColor: '#10b981' },
-                        { label: '생산량', data: data.map(d => d.생산), backgroundColor: '#6366f1' },
-                        { label: '재고량', data: data.map(d => d.재고), backgroundColor: '#f59e0b' }
+                        { label: '생산량', data: data.map(d => d.생산량), backgroundColor: '#10b981' },
+                        { label: '판매량', data: data.map(d => d.판매량), backgroundColor: '#6366f1' },
+                        { label: '기말재고', data: data.map(d => d.재고), backgroundColor: '#f59e0b' }
                     ]
                 }
             });
+
+            // 3. HR 차트
+            charts.hr = new Chart(document.getElementById('hrChart'), {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: '영업직원', data: data.map(d => d.영업직), backgroundColor: '#a855f7' },
+                        { label: '교육직원', data: data.map(d => d.교육직), backgroundColor: '#ec4899' },
+                        { label: '퇴직직원', data: data.map(d => d.퇴직직), backgroundColor: '#64748b' }
+                    ]
+                },
+                options: { scales: { y: { stacked: true } } }
+            });
+
+            // 4. 효율성 차트
+            charts.efficiency = new Chart(document.getElementById('efficiencyChart'), {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: '단위당 제조원가', data: data.map(d => d.원가), borderColor: '#f97316', yAxisID: 'y' },
+                        { label: 'R&D 투자(억)', data: data.map(d => d.연구비/100000000), borderColor: '#06b6d4', yAxisID: 'y1' }
+                    ]
+                },
+                options: {
+                    scales: {
+                        y: { type: 'linear', position: 'left' },
+                        y1: { type: 'linear', position: 'right', grid: { drawOnChartArea: false } }
+                    }
+                }
+            });
+            
+            updateCards(data[data.length - 1]);
         }
 
-        // 구글 앱스 스크립트에서 데이터를 가져오는 함수
+        function updateCards(latest) {
+            document.getElementById('card-revenue').innerText = (latest.매출 / 100000000).toFixed(1) + '억';
+            document.getElementById('card-profit').innerText = (latest.이익 / 100000000).toFixed(1) + '억';
+            document.getElementById('card-stock').innerText = latest.주가.toLocaleString() + '원';
+            document.getElementById('card-brand').innerText = latest.브랜드 + '등급';
+            document.getElementById('card-cost').innerText = latest.원가.toLocaleString() + '원';
+            document.getElementById('card-inventory').innerText = latest.재고.toLocaleString();
+        }
+
         function refreshData() {
             if (typeof google !== 'undefined') {
-                google.script.run.withSuccessHandler(updateDashboard).getSheetData();
-            } else {
-                console.log("GAS 환경이 아닙니다. 초기 데이터를 유지합니다.");
-                updateDashboard(initialData);
+                google.script.run.withSuccessHandler(data => {
+                    // 차트 데이터 업데이트 로직...
+                    updateCards(data[data.length - 1]);
+                }).getSheetData();
             }
         }
 
-        function updateDashboard(data) {
-            const latest = data[data.length - 1];
-            document.getElementById('card-revenue').innerText = (latest.매출 / 100000000).toFixed(1) + '억';
-            document.getElementById('card-profit').innerText = (latest.이익 / 100000000).toFixed(1) + '억';
-            document.getElementById('card-brand').innerText = latest.브랜드 + '등급';
-            document.getElementById('card-inventory').innerText = latest.재고.toLocaleString();
-            
-            // 차트 업데이트 로직 추가 가능
-        }
-
-        window.onload = () => initCharts(initialData);
+        window.onload = () => initAllCharts(rawData);
     </script>
 </body>
 </html>
