@@ -3,213 +3,117 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Management Performance Dashboard</title>
+    <title>경영 실적 대시보드</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;800&display=swap');
-        body { font-family: 'Pretendard', sans-serif; background-color: #f1f5f9; }
-        .kpi-card { transition: transform 0.2s; }
-        .kpi-card:hover { transform: translateY(-5px); }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
     </style>
 </head>
-<body class="p-4 md:p-8 text-slate-900">
-    <div class="max-w-6xl mx-auto">
-        <!-- Error Alert -->
-        <div id="error-banner" class="hidden mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-xl">
-            <strong>데이터 로드 오류:</strong> 시트에서 데이터를 찾을 수 없습니다. 컬럼명을 확인해주세요.
+<body class="p-6">
+    <div class="max-w-7xl mx-auto">
+        <header class="mb-8 flex justify-between items-center">
+            <h1 class="text-3xl font-bold text-gray-800">📊 경영 실적 현황판</h1>
+            <button onclick="refreshData()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">데이터 새로고침</button>
+        </header>
+
+        <!-- 요약 카드 -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-blue-500">
+                <p class="text-sm text-gray-500 font-semibold">최근 매출액</p>
+                <h3 id="card-revenue" class="text-2xl font-bold text-gray-800">718.5억</h3>
+            </div>
+            <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-red-500">
+                <p class="text-sm text-gray-500 font-semibold">최근 순이익</p>
+                <h3 id="card-profit" class="text-2xl font-bold text-red-600">-64.5억</h3>
+            </div>
+            <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-green-500">
+                <p class="text-sm text-gray-500 font-semibold">브랜드 등급</p>
+                <h3 id="card-brand" class="text-2xl font-bold text-gray-800">5등급</h3>
+            </div>
+            <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-yellow-500">
+                <p class="text-sm text-gray-500 font-semibold">기말 재고량</p>
+                <h3 id="card-inventory" class="text-2xl font-bold text-gray-800">41,094</h3>
+            </div>
         </div>
 
-        <!-- Header -->
-        <div class="flex flex-col md:flex-row justify-between items-center mb-8 bg-white p-6 rounded-2xl shadow-sm">
-            <div>
-                <h1 class="text-2xl font-extrabold text-slate-800">📊 실시간 경영 성과 대시보드</h1>
-                <p class="text-slate-500 text-sm mt-1">3차년도 4분기 vs 4차년도 1분기 비교</p>
+        <!-- 차트 영역 -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- 매출 및 순이익 추이 -->
+            <div class="bg-white p-6 rounded-xl shadow-sm">
+                <h4 class="text-lg font-bold mb-4 text-gray-700">매출 및 순이익 추이</h4>
+                <canvas id="revenueChart" height="200"></canvas>
             </div>
-            <div id="status-badge" class="mt-4 md:mt-0 px-4 py-2 bg-indigo-50 text-indigo-700 rounded-full text-xs font-bold flex items-center">
-                <span class="relative flex h-2 w-2 mr-2">
-                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-                    <span class="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
-                </span>
-                데이터 연결됨
-            </div>
-        </div>
-
-        <!-- KPI Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8" id="kpi-container">
-            <!-- Loading -->
-            <div class="bg-white p-8 rounded-2xl shadow-sm animate-pulse h-32"></div>
-            <div class="bg-white p-8 rounded-2xl shadow-sm animate-pulse h-32"></div>
-            <div class="bg-white p-8 rounded-2xl shadow-sm animate-pulse h-32"></div>
-        </div>
-
-        <!-- Content Grid -->
-        <div class="grid grid-cols-1 lg:grid-cols-5 gap-8">
-            <!-- Chart Card -->
-            <div class="lg:col-span-3 bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                <h3 class="text-lg font-bold mb-6">주요 지표 비교 차트</h3>
-                <div class="h-[350px]">
-                    <canvas id="performanceChart"></canvas>
-                </div>
-            </div>
-
-            <!-- Table Card -->
-            <div class="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                <h3 class="text-lg font-bold mb-6">항목별 상세 수치</h3>
-                <div class="overflow-hidden">
-                    <table class="w-full">
-                        <thead class="bg-slate-50">
-                            <tr>
-                                <th class="py-3 px-4 text-left text-xs font-bold text-slate-500 uppercase">항목</th>
-                                <th class="py-3 px-4 text-right text-xs font-bold text-slate-500 uppercase">성장률</th>
-                            </tr>
-                        </thead>
-                        <tbody id="table-body" class="divide-y divide-slate-100">
-                            <!-- JS Data -->
-                        </tbody>
-                    </table>
-                </div>
+            <!-- 판매/생산/재고 현황 -->
+            <div class="bg-white p-6 rounded-xl shadow-sm">
+                <h4 class="text-lg font-bold mb-4 text-gray-700">판매/생산/재고 현황</h4>
+                <canvas id="statusChart" height="200"></canvas>
             </div>
         </div>
     </div>
 
     <script>
-        const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR8VS0pkPm4gXulpUqNVk5aIaq22n733XbopZQwkTqYHr75KJeirIODEt0H9h66zG7Ac0wh6c-AE_1f/pub?gid=0&single=true&output=csv';
+        let revenueChart, statusChart;
 
-        // 1. 유연한 숫자 파싱 (공백, 콤마 제거)
-        const cleanNum = (val) => {
-            if (!val) return 0;
-            const num = parseFloat(val.toString().replace(/[^0-9.-]+/g, ""));
-            return isNaN(num) ? 0 : num;
-        };
+        // 초기 데이터 (시트 기반)
+        const initialData = [
+            {분기: "3차4Q", 매출: 88631620000, 이익: 4119883657, 판매: 129860, 생산: 136080, 재고: 21677, 브랜드: 4},
+            {분기: "4차1Q", 매출: 71854237160, 이익: -6454203885, 판매: 103055, 생산: 122472, 재고: 41094, 브랜드: 5}
+        ];
 
-        const formatWon = (val) => new Intl.NumberFormat('ko-KR').format(val) + '원';
-
-        // 2. 유연한 키 매칭 (앞뒤 공백 무시)
-        const findKey = (obj, target) => {
-            return Object.keys(obj).find(k => k.trim() === target.trim());
-        };
-
-        async function init() {
-            Papa.parse(CSV_URL, {
-                download: true,
-                header: true,
-                skipEmptyLines: true,
-                complete: function(results) {
-                    const data = results.data;
-                    console.log("Raw Data Check:", data); // 브라우저 콘솔에서 확인용
-
-                    // 컬럼명 정의 (시트와 정확히 일치해야 함)
-                    const COL_ITEM = "항목";
-                    const COL_PREV = "3차년도 4분기";
-                    const COL_CURR = "4차년도 1분기";
-
-                    // 데이터 매핑 로직
-                    const metrics = [
-                        { name: '매출액', color: 'indigo' },
-                        { name: '영업이익', color: 'emerald' },
-                        { name: '당기순이익', color: 'amber' }
-                    ].map(m => {
-                        const row = data.find(r => r[COL_ITEM]?.trim() === m.name);
-                        return {
-                            name: m.name,
-                            prev: row ? cleanNum(row[COL_PREV]) : 0,
-                            curr: row ? cleanNum(row[COL_CURR]) : 0,
-                            color: m.color
-                        };
-                    });
-
-                    if (metrics.every(m => m.prev === 0 && m.curr === 0)) {
-                        document.getElementById('error-banner').classList.remove('hidden');
-                    } else {
-                        renderUI(metrics);
-                        renderChart(metrics);
-                    }
-                }
-            });
-        }
-
-        function renderUI(metrics) {
-            // KPI Cards
-            const kpiContainer = document.getElementById('kpi-container');
-            const colors = {
-                indigo: 'bg-indigo-600',
-                emerald: 'bg-emerald-600',
-                amber: 'bg-amber-600'
-            };
-
-            kpiContainer.innerHTML = metrics.map(m => {
-                const diff = m.prev !== 0 ? ((m.curr - m.prev) / m.prev * 100).toFixed(1) : '0.0';
-                return `
-                    <div class="bg-white p-6 rounded-2xl shadow-sm border-l-4 border-${m.color}-500 kpi-card">
-                        <div class="flex justify-between items-start mb-4">
-                            <p class="text-sm font-bold text-slate-500">${m.name}</p>
-                            <span class="text-xs px-2 py-1 rounded font-bold ${diff >= 0 ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600'}">
-                                ${diff >= 0 ? '▲' : '▼'} ${Math.abs(diff)}%
-                            </span>
-                        </div>
-                        <h2 class="text-2xl font-extrabold text-slate-800">${formatWon(m.curr)}</h2>
-                        <p class="text-xs text-slate-400 mt-2">전분기: ${formatWon(m.prev)}</p>
-                    </div>
-                `;
-            }).join('');
-
-            // Table
-            const tbody = document.getElementById('table-body');
-            tbody.innerHTML = metrics.map(m => {
-                const diff = m.prev !== 0 ? ((m.curr - m.prev) / m.prev * 100).toFixed(1) : '0.0';
-                return `
-                    <tr>
-                        <td class="py-4 px-4 text-sm font-bold text-slate-700">${m.name}</td>
-                        <td class="py-4 px-4 text-right">
-                            <span class="text-sm font-extrabold ${diff >= 0 ? 'text-red-500' : 'text-blue-500'}">
-                                ${diff >= 0 ? '+' : ''}${diff}%
-                            </span>
-                        </td>
-                    </tr>
-                `;
-            }).join('');
-        }
-
-        function renderChart(metrics) {
-            const ctx = document.getElementById('performanceChart').getContext('2d');
-            new Chart(ctx, {
+        function initCharts(data) {
+            const labels = data.map(d => d.분기);
+            
+            // 매출/순이익 차트
+            const ctxRev = document.getElementById('revenueChart').getContext('2d');
+            revenueChart = new Chart(ctxRev, {
                 type: 'bar',
                 data: {
-                    labels: metrics.map(m => m.name),
+                    labels: labels,
                     datasets: [
-                        {
-                            label: '3차년도 4분기 (이전)',
-                            data: metrics.map(m => m.prev),
-                            backgroundColor: '#cbd5e1',
-                            borderRadius: 6
-                        },
-                        {
-                            label: '4차년도 1분기 (현재)',
-                            data: metrics.map(m => m.curr),
-                            backgroundColor: '#6366f1',
-                            borderRadius: 6
-                        }
+                        { label: '매출액', data: data.map(d => d.매출), backgroundColor: '#3b82f6' },
+                        { label: '순이익', data: data.map(d => d.이익), type: 'line', borderColor: '#ef4444', fill: false }
                     ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { position: 'bottom' } },
-                    scales: {
-                        y: { 
-                            beginAtZero: true,
-                            grid: { color: '#f1f5f9' },
-                            ticks: { callback: v => v.toLocaleString() }
-                        },
-                        x: { grid: { display: false } }
-                    }
+                }
+            });
+
+            // 판매/생산/재고 차트
+            const ctxStat = document.getElementById('statusChart').getContext('2d');
+            statusChart = new Chart(ctxStat, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: '판매량', data: data.map(d => d.판매), backgroundColor: '#10b981' },
+                        { label: '생산량', data: data.map(d => d.생산), backgroundColor: '#6366f1' },
+                        { label: '재고량', data: data.map(d => d.재고), backgroundColor: '#f59e0b' }
+                    ]
                 }
             });
         }
 
-        window.onload = init;
+        // 구글 앱스 스크립트에서 데이터를 가져오는 함수
+        function refreshData() {
+            if (typeof google !== 'undefined') {
+                google.script.run.withSuccessHandler(updateDashboard).getSheetData();
+            } else {
+                console.log("GAS 환경이 아닙니다. 초기 데이터를 유지합니다.");
+                updateDashboard(initialData);
+            }
+        }
+
+        function updateDashboard(data) {
+            const latest = data[data.length - 1];
+            document.getElementById('card-revenue').innerText = (latest.매출 / 100000000).toFixed(1) + '억';
+            document.getElementById('card-profit').innerText = (latest.이익 / 100000000).toFixed(1) + '억';
+            document.getElementById('card-brand').innerText = latest.브랜드 + '등급';
+            document.getElementById('card-inventory').innerText = latest.재고.toLocaleString();
+            
+            // 차트 업데이트 로직 추가 가능
+        }
+
+        window.onload = () => initCharts(initialData);
     </script>
 </body>
 </html>
