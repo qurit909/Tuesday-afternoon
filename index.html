@@ -4,72 +4,69 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Management Performance Dashboard</title>
-    <!-- Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Chart.js for data visualization -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- PapaParse for CSV parsing -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;800&display=swap');
-        body { font-family: 'Pretendard', sans-serif; background-color: #f8fafc; }
-        .gradient-card-1 { background: linear-gradient(135deg, #6366f1 0%, #4338ca 100%); }
-        .gradient-card-2 { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
-        .gradient-card-3 { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
-        .trend-up { color: #ef4444; }
-        .trend-down { color: #3b82f6; }
+        body { font-family: 'Pretendard', sans-serif; background-color: #f1f5f9; }
+        .kpi-card { transition: transform 0.2s; }
+        .kpi-card:hover { transform: translateY(-5px); }
     </style>
 </head>
-<body class="p-4 md:p-8">
+<body class="p-4 md:p-8 text-slate-900">
     <div class="max-w-6xl mx-auto">
+        <!-- Error Alert -->
+        <div id="error-banner" class="hidden mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-xl">
+            <strong>데이터 로드 오류:</strong> 시트에서 데이터를 찾을 수 없습니다. 컬럼명을 확인해주세요.
+        </div>
+
         <!-- Header -->
-        <div class="flex flex-col md:flex-row justify-between items-end mb-8 border-b pb-6">
+        <div class="flex flex-col md:flex-row justify-between items-center mb-8 bg-white p-6 rounded-2xl shadow-sm">
             <div>
-                <h1 class="text-3xl font-extrabold text-slate-800">경영 성과 분석 리포트</h1>
-                <p class="text-slate-500 mt-2">3차년도 4분기 vs 4차년도 1분기 비교 분석</p>
+                <h1 class="text-2xl font-extrabold text-slate-800">📊 실시간 경영 성과 대시보드</h1>
+                <p class="text-slate-500 text-sm mt-1">3차년도 4분기 vs 4차년도 1분기 비교</p>
             </div>
-            <div class="text-right mt-4 md:mt-0">
-                <span id="last-updated" class="text-xs font-mono text-slate-400">데이터 로드 중...</span>
+            <div id="status-badge" class="mt-4 md:mt-0 px-4 py-2 bg-indigo-50 text-indigo-700 rounded-full text-xs font-bold flex items-center">
+                <span class="relative flex h-2 w-2 mr-2">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
+                </span>
+                데이터 연결됨
             </div>
         </div>
 
         <!-- KPI Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10" id="kpi-container">
-            <!-- Loading States -->
-            <div class="animate-pulse bg-slate-200 h-32 rounded-2xl"></div>
-            <div class="animate-pulse bg-slate-200 h-32 rounded-2xl"></div>
-            <div class="animate-pulse bg-slate-200 h-32 rounded-2xl"></div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8" id="kpi-container">
+            <!-- Loading -->
+            <div class="bg-white p-8 rounded-2xl shadow-sm animate-pulse h-32"></div>
+            <div class="bg-white p-8 rounded-2xl shadow-sm animate-pulse h-32"></div>
+            <div class="bg-white p-8 rounded-2xl shadow-sm animate-pulse h-32"></div>
         </div>
 
-        <!-- Charts Section -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <!-- Bar Chart -->
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                <h3 class="text-lg font-bold text-slate-800 mb-6 flex items-center">
-                    <span class="w-2 h-6 bg-indigo-500 rounded-full mr-3"></span> 주요 지표 성장 추이
-                </h3>
-                <div class="relative h-[350px]">
-                    <canvas id="barChart"></canvas>
+        <!-- Content Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-5 gap-8">
+            <!-- Chart Card -->
+            <div class="lg:col-span-3 bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                <h3 class="text-lg font-bold mb-6">주요 지표 비교 차트</h3>
+                <div class="h-[350px]">
+                    <canvas id="performanceChart"></canvas>
                 </div>
             </div>
 
-            <!-- Detailed Table -->
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                <h3 class="text-lg font-bold text-slate-800 mb-6 flex items-center">
-                    <span class="w-2 h-6 bg-emerald-500 rounded-full mr-3"></span> 세부 항목 비교표
-                </h3>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left">
-                        <thead>
-                            <tr class="text-slate-400 text-sm border-b">
-                                <th class="pb-3 font-semibold">항목</th>
-                                <th class="pb-3 font-semibold text-right">3차 4Q</th>
-                                <th class="pb-3 font-semibold text-right">4차 1Q</th>
-                                <th class="pb-3 font-semibold text-right">증감률</th>
+            <!-- Table Card -->
+            <div class="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                <h3 class="text-lg font-bold mb-6">항목별 상세 수치</h3>
+                <div class="overflow-hidden">
+                    <table class="w-full">
+                        <thead class="bg-slate-50">
+                            <tr>
+                                <th class="py-3 px-4 text-left text-xs font-bold text-slate-500 uppercase">항목</th>
+                                <th class="py-3 px-4 text-right text-xs font-bold text-slate-500 uppercase">성장률</th>
                             </tr>
                         </thead>
-                        <tbody id="table-body" class="text-slate-700">
-                            <!-- Data injected here -->
+                        <tbody id="table-body" class="divide-y divide-slate-100">
+                            <!-- JS Data -->
                         </tbody>
                     </table>
                 </div>
@@ -79,143 +76,140 @@
 
     <script>
         const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR8VS0pkPm4gXulpUqNVk5aIaq22n733XbopZQwkTqYHr75KJeirIODEt0H9h66zG7Ac0wh6c-AE_1f/pub?gid=0&single=true&output=csv';
-        
-        // Helper to parse currency string to number
-        const parseValue = (val) => {
+
+        // 1. 유연한 숫자 파싱 (공백, 콤마 제거)
+        const cleanNum = (val) => {
             if (!val) return 0;
-            return parseFloat(val.toString().replace(/[^0-9.-]+/g, ""));
+            const num = parseFloat(val.toString().replace(/[^0-9.-]+/g, ""));
+            return isNaN(num) ? 0 : num;
         };
 
-        // Helper to format currency
-        const formatCurrency = (val) => {
-            return new Intl.NumberFormat('ko-KR').format(val);
+        const formatWon = (val) => new Intl.NumberFormat('ko-KR').format(val) + '원';
+
+        // 2. 유연한 키 매칭 (앞뒤 공백 무시)
+        const findKey = (obj, target) => {
+            return Object.keys(obj).find(k => k.trim() === target.trim());
         };
 
-        async function fetchData() {
+        async function init() {
             Papa.parse(CSV_URL, {
                 download: true,
                 header: true,
+                skipEmptyLines: true,
                 complete: function(results) {
-                    processData(results.data);
-                    document.getElementById('last-updated').innerText = `최신 업데이트: ${new Date().toLocaleString()}`;
-                },
-                error: function(err) {
-                    console.error("Data Load Error:", err);
+                    const data = results.data;
+                    console.log("Raw Data Check:", data); // 브라우저 콘솔에서 확인용
+
+                    // 컬럼명 정의 (시트와 정확히 일치해야 함)
+                    const COL_ITEM = "항목";
+                    const COL_PREV = "3차년도 4분기";
+                    const COL_CURR = "4차년도 1분기";
+
+                    // 데이터 매핑 로직
+                    const metrics = [
+                        { name: '매출액', color: 'indigo' },
+                        { name: '영업이익', color: 'emerald' },
+                        { name: '당기순이익', color: 'amber' }
+                    ].map(m => {
+                        const row = data.find(r => r[COL_ITEM]?.trim() === m.name);
+                        return {
+                            name: m.name,
+                            prev: row ? cleanNum(row[COL_PREV]) : 0,
+                            curr: row ? cleanNum(row[COL_CURR]) : 0,
+                            color: m.color
+                        };
+                    });
+
+                    if (metrics.every(m => m.prev === 0 && m.curr === 0)) {
+                        document.getElementById('error-banner').classList.remove('hidden');
+                    } else {
+                        renderUI(metrics);
+                        renderChart(metrics);
+                    }
                 }
             });
         }
 
-        function processData(data) {
-            // Find specific rows by '항목'
-            const findRow = (name) => data.find(r => r['항목'] === name);
-            
-            const targetMetrics = ['매출액', '영업이익', '당기순이익'];
-            const processed = targetMetrics.map(name => {
-                const row = findRow(name);
-                return {
-                    name: name,
-                    prev: parseValue(row['3차년도 4분기']),
-                    curr: parseValue(row['4차년도 1분기'])
-                };
-            });
+        function renderUI(metrics) {
+            // KPI Cards
+            const kpiContainer = document.getElementById('kpi-container');
+            const colors = {
+                indigo: 'bg-indigo-600',
+                emerald: 'bg-emerald-600',
+                amber: 'bg-amber-600'
+            };
 
-            renderKPIs(processed);
-            renderTable(data);
-            renderCharts(processed);
-        }
-
-        function renderKPIs(metrics) {
-            const container = document.getElementById('kpi-container');
-            container.innerHTML = metrics.map((m, i) => {
-                const diff = m.curr - m.prev;
-                const percent = ((diff / m.prev) * 100).toFixed(1);
-                const isUp = diff >= 0;
-                
+            kpiContainer.innerHTML = metrics.map(m => {
+                const diff = m.prev !== 0 ? ((m.curr - m.prev) / m.prev * 100).toFixed(1) : '0.0';
                 return `
-                    <div class="gradient-card-${i+1} p-6 rounded-2xl text-white shadow-lg">
-                        <div class="flex justify-between items-start">
-                            <span class="text-sm font-medium opacity-80">${m.name} (4차 1Q)</span>
-                            <span class="bg-white/20 px-2 py-1 rounded text-xs">${isUp ? '▲' : '▼'} ${Math.abs(percent)}%</span>
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border-l-4 border-${m.color}-500 kpi-card">
+                        <div class="flex justify-between items-start mb-4">
+                            <p class="text-sm font-bold text-slate-500">${m.name}</p>
+                            <span class="text-xs px-2 py-1 rounded font-bold ${diff >= 0 ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600'}">
+                                ${diff >= 0 ? '▲' : '▼'} ${Math.abs(diff)}%
+                            </span>
                         </div>
-                        <div class="mt-4 text-2xl font-extrabold">${formatCurrency(m.curr)}원</div>
-                        <div class="mt-2 text-xs opacity-70">전분기: ${formatCurrency(m.prev)}원</div>
+                        <h2 class="text-2xl font-extrabold text-slate-800">${formatWon(m.curr)}</h2>
+                        <p class="text-xs text-slate-400 mt-2">전분기: ${formatWon(m.prev)}</p>
                     </div>
                 `;
             }).join('');
-        }
 
-        function renderTable(data) {
+            // Table
             const tbody = document.getElementById('table-body');
-            // Show all numeric rows
-            tbody.innerHTML = data.filter(r => r['항목'] && r['3차년도 4분기']).map(row => {
-                const prev = parseValue(row['3차년도 4분기']);
-                const curr = parseValue(row['4차년도 1분기']);
-                const diff = prev !== 0 ? ((curr - prev) / prev * 100).toFixed(1) : '0.0';
-                
+            tbody.innerHTML = metrics.map(m => {
+                const diff = m.prev !== 0 ? ((m.curr - m.prev) / m.prev * 100).toFixed(1) : '0.0';
                 return `
-                    <tr class="border-b border-slate-50 hover:bg-slate-50 transition-colors">
-                        <td class="py-4 font-semibold text-sm">${row['항목']}</td>
-                        <td class="py-4 text-right text-sm">${formatCurrency(prev)}</td>
-                        <td class="py-4 text-right text-sm font-bold text-slate-900">${formatCurrency(curr)}</td>
-                        <td class="py-4 text-right text-sm ${diff >= 0 ? 'text-red-500' : 'text-blue-500'} font-bold">
-                            ${diff >= 0 ? '+' : ''}${diff}%
+                    <tr>
+                        <td class="py-4 px-4 text-sm font-bold text-slate-700">${m.name}</td>
+                        <td class="py-4 px-4 text-right">
+                            <span class="text-sm font-extrabold ${diff >= 0 ? 'text-red-500' : 'text-blue-500'}">
+                                ${diff >= 0 ? '+' : ''}${diff}%
+                            </span>
                         </td>
                     </tr>
                 `;
             }).join('');
         }
 
-        function renderCharts(metrics) {
-            const ctx = document.getElementById('barChart').getContext('2d');
-            
-            // Clean up existing chart if any
-            if (window.myChart) window.myChart.destroy();
-
-            window.myChart = new Chart(ctx, {
+        function renderChart(metrics) {
+            const ctx = document.getElementById('performanceChart').getContext('2d');
+            new Chart(ctx, {
                 type: 'bar',
                 data: {
                     labels: metrics.map(m => m.name),
                     datasets: [
                         {
-                            label: '3차년도 4분기',
+                            label: '3차년도 4분기 (이전)',
                             data: metrics.map(m => m.prev),
-                            backgroundColor: '#e2e8f0',
-                            borderRadius: 8,
+                            backgroundColor: '#cbd5e1',
+                            borderRadius: 6
                         },
                         {
-                            label: '4차년도 1분기',
+                            label: '4차년도 1분기 (현재)',
                             data: metrics.map(m => m.curr),
                             backgroundColor: '#6366f1',
-                            borderRadius: 8,
+                            borderRadius: 6
                         }
                     ]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: {
-                        legend: { position: 'top', labels: { usePointStyle: true, font: { family: 'Pretendard' } } }
-                    },
+                    plugins: { legend: { position: 'bottom' } },
                     scales: {
-                        y: {
+                        y: { 
                             beginAtZero: true,
-                            ticks: {
-                                font: { family: 'Pretendard' },
-                                callback: value => value.toLocaleString()
-                            },
-                            grid: { display: false }
+                            grid: { color: '#f1f5f9' },
+                            ticks: { callback: v => v.toLocaleString() }
                         },
-                        x: {
-                            ticks: { font: { family: 'Pretendard', weight: 'bold' } },
-                            grid: { display: false }
-                        }
+                        x: { grid: { display: false } }
                     }
                 }
             });
         }
 
-        // Initial Load
-        window.onload = fetchData;
+        window.onload = init;
     </script>
 </body>
 </html>
