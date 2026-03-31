@@ -2,107 +2,134 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>실시간 경영 분석 대시보드 (수정본)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>실시간 경영 정보 대시보드</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { font-family: sans-serif; background-color: #f0f2f5; padding: 20px; }
+        :root { --bg: #f0f2f5; --card: #ffffff; --primary: #007bff; }
+        body { font-family: 'Pretendard', -apple-system, sans-serif; background: var(--bg); margin: 0; padding: 20px; }
         .container { max-width: 1200px; margin: auto; }
-        .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px; }
-        .stat-card { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: center; }
-        .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        .chart-box { background: white; padding: 15px; border-radius: 8px; min-height: 300px; }
-        #status { color: #e74c3c; font-weight: bold; margin-bottom: 10px; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .status-tag { padding: 5px 12px; border-radius: 20px; font-size: 12px; background: #e1f5fe; color: #01579b; font-weight: bold; }
+        
+        /* 대시보드 레이아웃 */
+        .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+        .card { background: var(--card); padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .full { grid-column: 1 / -1; }
+        
+        h2 { font-size: 1.1rem; color: #333; margin-top: 0; border-left: 4px solid var(--primary); padding-left: 10px; }
+        canvas { width: 100% !important; max-height: 350px; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>📊 경영 지표 실시간 대시보드</h1>
-    <div id="status">데이터 연결 시도 중...</div>
-
-    <div class="stats-grid">
-        <div class="stat-card"><h4>최근 매출</h4><p id="v-rev">-</p></div>
-        <div class="stat-card"><h4>영업이익</h4><p id="v-prof">-</p></div>
-        <div class="stat-card"><h4>시장점유율</h4><p id="v-mkt">-</p></div>
-        <div class="stat-card"><h4>현재 주가</h4><p id="v-stock">-</p></div>
+    <div class="header">
+        <h1>📊 전사 경영 실적 라이브</h1>
+        <div id="syncStatus" class="status-tag">데이터 동기화 중...</div>
     </div>
 
-    <div class="charts-grid">
-        <div class="chart-box"><canvas id="chart1"></canvas></div>
-        <div class="chart-box"><canvas id="chart2"></canvas></div>
+    <div class="grid">
+        <div class="card full">
+            <h2>매출액 및 영업이익 추이</h2>
+            <canvas id="chart_main"></canvas>
+        </div>
+
+        <div class="card">
+            <h2>분기별 주가 변동</h2>
+            <canvas id="chart_stock"></canvas>
+        </div>
+
+        <div class="card">
+            <h2>시장 점유율 (%)</h2>
+            <canvas id="chart_market"></canvas>
+        </div>
+
+        <div class="card full">
+            <h2>영업 인력 및 인건비 현황</h2>
+            <canvas id="chart_hr"></canvas>
+        </div>
     </div>
 </div>
 
 <script>
-    // CORS 문제를 피하기 위해 allorigins 프록시 사용 (실시간 반영을 위해 cache 제거)
-    const rawUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQrNAvtAANdFK70ElUqZKgxL2zza8ODH55YHhia15f4aqQU2buXD-pyjzkmfRCpd41JBwkik6iQvWuP/pub?output=csv';
-    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(rawUrl)}&timestamp=${new Date().getTime()}`;
-
-    let myCharts = {};
+    const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQrNAvtAANdFK70ElUqZKgxL2zza8ODH55YHhia15f4aqQU2buXD-pyjzkmfRCpd41JBwkik6iQvWuP/pub?output=csv';
+    let charts = {};
 
     async function updateDashboard() {
         try {
-            const response = await fetch(proxyUrl);
-            const json = await response.json();
-            const data = json.contents;
+            // 캐시 방지를 위해 타임스탬프 추가
+            const response = await fetch(`${CSV_URL}&t=${new Date().getTime()}`);
+            const text = await response.text();
             
-            // CSV 파싱
-            const rows = data.trim().split('\n').map(row => row.split(','));
-            if (rows.length < 2) throw new Error("데이터가 부족합니다.");
+            // CSV 파싱 (쉼표 기준 분리 및 공백 제거)
+            const rows = text.trim().split('\n').map(row => row.split(',').map(cell => cell.trim()));
+            const data = rows.slice(1); // 헤더 제외 데이터셋
 
-            const headers = rows[0];
-            const content = rows.slice(1);
+            // 데이터 추출 (사용자 제공 열 순서 기준)
+            const labels = data.map(r => r[0]);          // 분기
+            const marketShare = data.map(r => parseFloat(r[1]) || 0); // 시장점유율
+            const stockPrice = data.map(r => parseFloat(r[2]) || 0);  // 주가
+            const revenue = data.map(r => parseFloat(r[12]) || 0);    // 매출
+            const opProfit = data.map(r => parseFloat(r[13]) || 0);   // 영업이익
+            const hrCount = data.map(r => parseFloat(r[9]) || 0);     // 영업직원수
+            const hrCost = data.map(r => parseFloat(r[14]) || 0);     // 직원인건비
 
-            // 데이터 추출
-            const labels = content.map(r => r[0]); // 분기
-            const mktShare = content.map(r => parseFloat(r[1]) || 0);
-            const stock = content.map(r => parseFloat(r[2]) || 0);
-            const revenue = content.map(r => parseFloat(r[12]) || 0);
-            const profit = content.map(r => parseFloat(r[13]) || 0);
+            // 차트 렌더링 호출
+            render('chart_main', 'line', labels, [
+                { label: '매출액', data: revenue, borderColor: '#4e73df', backgroundColor: 'rgba(78,115,223,0.05)', fill: true },
+                { label: '영업이익', data: opProfit, borderColor: '#1cc88a', fill: false }
+            ]);
 
-            // 텍스트 업데이트
-            const last = content.length - 1;
-            document.getElementById('v-rev').innerText = revenue[last].toLocaleString() + '원';
-            document.getElementById('v-prof').innerText = profit[last].toLocaleString() + '원';
-            document.getElementById('v-mkt').innerText = mktShare[last] + '%';
-            document.getElementById('v-stock').innerText = stock[last].toLocaleString() + '원';
-            
-            document.getElementById('status').innerText = '✅ 정상 연결됨: ' + new Date().toLocaleTimeString();
-            document.getElementById('status').style.color = '#27ae60';
+            render('chart_stock', 'bar', labels, [
+                { label: '주가', data: stockPrice, backgroundColor: '#f6c23e' }
+            ]);
 
-            // 차트 생성/업데이트
-            draw( 'chart1', 'line', labels, [
-                { label: '매출', data: revenue, borderColor: '#3498db' },
-                { label: '영업이익', data: profit, borderColor: '#e67e22' }
-            ], '매출 및 영업이익 추이');
+            render('chart_market', 'radar', labels, [
+                { label: '시장점유율(%)', data: marketShare, backgroundColor: 'rgba(54, 162, 235, 0.2)', borderColor: '#36a2eb' }
+            ]);
 
-            draw( 'chart2', 'bar', labels, [
-                { label: '주가', data: stock, backgroundColor: '#9b59b6' }
-            ], '분기별 주가 흐름');
+            render('chart_hr', 'line', labels, [
+                { label: '영업직원수', data: hrCount, borderColor: '#e74a3b', yAxisID: 'y' },
+                { label: '인건비', data: hrCost, borderColor: '#858796', borderDash: [5,5], yAxisID: 'y1' }
+            ], true);
 
-        } catch (e) {
-            document.getElementById('status').innerText = '❌ 오류 발생: ' + e.message;
-            console.error(e);
+            document.getElementById('syncStatus').innerText = `마지막 업데이트: ${new Date().toLocaleTimeString()}`;
+            document.getElementById('syncStatus').style.background = "#e8f5e9";
+            document.getElementById('syncStatus').style.color = "#2e7d32";
+
+        } catch (err) {
+            console.error(err);
+            document.getElementById('syncStatus').innerText = "⚠️ 시트 연결 대기 중...";
+            document.getElementById('syncStatus').style.background = "#ffebee";
+            document.getElementById('syncStatus').style.color = "#c62828";
         }
     }
 
-    function draw(id, type, labels, datasets, title) {
-        if (myCharts[id]) {
-            myCharts[id].data.labels = labels;
-            myCharts[id].data.datasets = datasets;
-            myCharts[id].update('none');
+    function render(id, type, labels, datasets, hasSecondAxis = false) {
+        const ctx = document.getElementById(id).getContext('2d');
+        const options = {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: hasSecondAxis ? {
+                y: { type: 'linear', display: true, position: 'left' },
+                y1: { type: 'linear', display: true, position: 'right', grid: { drawOnChartArea: false } }
+            } : {}
+        };
+
+        if (charts[id]) {
+            charts[id].data.labels = labels;
+            charts[id].data.datasets = datasets;
+            charts[id].update('none');
         } else {
-            myCharts[id] = new Chart(document.getElementById(id), {
-                type: type,
-                data: { labels, datasets },
-                options: { responsive: true, plugins: { title: { display: true, text: title } } }
-            });
+            charts[id] = new Chart(ctx, { type, data: { labels, datasets }, options });
         }
     }
 
-    // 10초마다 갱신
-    setInterval(updateDashboard, 10000);
+    // 30초마다 자동 갱신
+    setInterval(updateDashboard, 30000);
     updateDashboard();
 </script>
+
 </body>
 </html>
