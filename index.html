@@ -3,132 +3,155 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>실시간 경영 정보 대시보드</title>
+    <title>실시간 경영 지표 대시보드</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        :root { --bg: #f0f2f5; --card: #ffffff; --primary: #007bff; }
-        body { font-family: 'Pretendard', -apple-system, sans-serif; background: var(--bg); margin: 0; padding: 20px; }
+        :root { --bg-color: #f4f7f9; --card-bg: #ffffff; --primary-blue: #007bff; --text-dark: #333; }
+        body { font-family: 'Pretendard', sans-serif; background-color: var(--bg-color); margin: 0; padding: 20px; color: var(--text-dark); }
         .container { max-width: 1200px; margin: auto; }
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        .status-tag { padding: 5px 12px; border-radius: 20px; font-size: 12px; background: #e1f5fe; color: #01579b; font-weight: bold; }
-        
-        /* 대시보드 레이아웃 */
-        .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
-        .card { background: var(--card); padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .status-box { font-size: 0.85rem; padding: 5px 15px; border-radius: 20px; background: #e0e0e0; color: #666; }
+        .online { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+
+        /* 레이아웃 */
+        .dashboard-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+        .card { background: var(--card-bg); border-radius: 12px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
         .full { grid-column: 1 / -1; }
         
-        h2 { font-size: 1.1rem; color: #333; margin-top: 0; border-left: 4px solid var(--primary); padding-left: 10px; }
-        canvas { width: 100% !important; max-height: 350px; }
+        h2 { font-size: 1.1rem; margin-top: 0; margin-bottom: 15px; color: #555; }
+        .data-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.85rem; }
+        .data-table th, .data-table td { border-bottom: 1px solid #eee; padding: 10px; text-align: right; }
+        .data-table th:first-child, .data-table td:first-child { text-align: left; }
+        .data-table th { background: #f8f9fa; color: #777; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <div class="header">
-        <h1>📊 전사 경영 실적 라이브</h1>
-        <div id="syncStatus" class="status-tag">데이터 동기화 중...</div>
-    </div>
+    <header>
+        <h1>📊 전사 실적 라이브 대시보드</h1>
+        <div id="statusIndicator" class="status-box">데이터 연결 중...</div>
+    </header>
 
-    <div class="grid">
+    <div class="dashboard-grid">
         <div class="card full">
-            <h2>매출액 및 영업이익 추이</h2>
-            <canvas id="chart_main"></canvas>
+            <h2>분기별 매출액 및 영업이익 (실시간)</h2>
+            <canvas id="chart_main" style="height: 300px;"></canvas>
         </div>
 
         <div class="card">
-            <h2>분기별 주가 변동</h2>
-            <canvas id="chart_stock"></canvas>
+            <h2>주가 및 시장 점유율 추이</h2>
+            <canvas id="chart_sub"></canvas>
         </div>
 
         <div class="card">
-            <h2>시장 점유율 (%)</h2>
-            <canvas id="chart_market"></canvas>
-        </div>
-
-        <div class="card full">
-            <h2>영업 인력 및 인건비 현황</h2>
-            <canvas id="chart_hr"></canvas>
+            <h2>최근 데이터 상세</h2>
+            <div id="table_container"></div>
         </div>
     </div>
 </div>
 
 <script>
-    const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQrNAvtAANdFK70ElUqZKgxL2zza8ODH55YHhia15f4aqQU2buXD-pyjzkmfRCpd41JBwkik6iQvWuP/pub?output=csv';
-    let charts = {};
+    // 1. 구글 시트 CSV 주소 (사용자 제공 URL)
+    const BASE_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQrNAvtAANdFK70ElUqZKgxL2zza8ODH55YHhia15f4aqQU2buXD-pyjzkmfRCpd41JBwkik6iQvWuP/pub?gid=456668350&single=true&output=csv';
+    
+    let mainChart, subChart;
 
-    async function updateDashboard() {
+    async function fetchSpreadsheetData() {
         try {
-            // 캐시 방지를 위해 타임스탬프 추가
-            const response = await fetch(`${CSV_URL}&t=${new Date().getTime()}`);
-            const text = await response.text();
+            // 캐시 방지를 위해 랜덤 쿼리 추가
+            const cacheBuster = `&t=${new Date().getTime()}`;
+            const response = await fetch(BASE_URL + cacheBuster);
+            if (!response.ok) throw new Error("데이터를 가져오지 못했습니다.");
             
-            // CSV 파싱 (쉼표 기준 분리 및 공백 제거)
-            const rows = text.trim().split('\n').map(row => row.split(',').map(cell => cell.trim()));
-            const data = rows.slice(1); // 헤더 제외 데이터셋
-
-            // 데이터 추출 (사용자 제공 열 순서 기준)
-            const labels = data.map(r => r[0]);          // 분기
-            const marketShare = data.map(r => parseFloat(r[1]) || 0); // 시장점유율
-            const stockPrice = data.map(r => parseFloat(r[2]) || 0);  // 주가
-            const revenue = data.map(r => parseFloat(r[12]) || 0);    // 매출
-            const opProfit = data.map(r => parseFloat(r[13]) || 0);   // 영업이익
-            const hrCount = data.map(r => parseFloat(r[9]) || 0);     // 영업직원수
-            const hrCost = data.map(r => parseFloat(r[14]) || 0);     // 직원인건비
-
-            // 차트 렌더링 호출
-            render('chart_main', 'line', labels, [
-                { label: '매출액', data: revenue, borderColor: '#4e73df', backgroundColor: 'rgba(78,115,223,0.05)', fill: true },
-                { label: '영업이익', data: opProfit, borderColor: '#1cc88a', fill: false }
-            ]);
-
-            render('chart_stock', 'bar', labels, [
-                { label: '주가', data: stockPrice, backgroundColor: '#f6c23e' }
-            ]);
-
-            render('chart_market', 'radar', labels, [
-                { label: '시장점유율(%)', data: marketShare, backgroundColor: 'rgba(54, 162, 235, 0.2)', borderColor: '#36a2eb' }
-            ]);
-
-            render('chart_hr', 'line', labels, [
-                { label: '영업직원수', data: hrCount, borderColor: '#e74a3b', yAxisID: 'y' },
-                { label: '인건비', data: hrCost, borderColor: '#858796', borderDash: [5,5], yAxisID: 'y1' }
-            ], true);
-
-            document.getElementById('syncStatus').innerText = `마지막 업데이트: ${new Date().toLocaleTimeString()}`;
-            document.getElementById('syncStatus').style.background = "#e8f5e9";
-            document.getElementById('syncStatus').style.color = "#2e7d32";
-
-        } catch (err) {
-            console.error(err);
-            document.getElementById('syncStatus').innerText = "⚠️ 시트 연결 대기 중...";
-            document.getElementById('syncStatus').style.background = "#ffebee";
-            document.getElementById('syncStatus').style.color = "#c62828";
+            const csvText = await response.text();
+            const rows = csvText.trim().split('\n').map(row => row.split(',').map(cell => cell.trim()));
+            
+            processData(rows);
+            
+            const status = document.getElementById('statusIndicator');
+            status.innerText = `✅ 실시간 동기화 중 (${new Date().toLocaleTimeString()})`;
+            status.className = 'status-box online';
+        } catch (error) {
+            console.error(error);
+            document.getElementById('statusIndicator').innerText = "❌ 시트 연결 오류 (게시 상태 확인)";
         }
     }
 
-    function render(id, type, labels, datasets, hasSecondAxis = false) {
-        const ctx = document.getElementById(id).getContext('2d');
-        const options = {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: hasSecondAxis ? {
-                y: { type: 'linear', display: true, position: 'left' },
-                y1: { type: 'linear', display: true, position: 'right', grid: { drawOnChartArea: false } }
-            } : {}
-        };
+    function processData(rows) {
+        const headers = rows[0];
+        const data = rows.slice(1);
 
-        if (charts[id]) {
-            charts[id].data.labels = labels;
-            charts[id].data.datasets = datasets;
-            charts[id].update('none');
-        } else {
-            charts[id] = new Chart(ctx, { type, data: { labels, datasets }, options });
-        }
+        // 데이터 매핑 (사용자 요청 필드 기준)
+        const labels = data.map(r => r[0]);           // 분기
+        const marketShare = data.map(r => parseFloat(r[1]) || 0); // 시장점유율
+        const stockPrice = data.map(r => parseFloat(r[2]) || 0);  // 주가
+        const revenue = data.map(r => parseFloat(r[12]) || 0);    // 매출
+        const opProfit = data.map(r => parseFloat(r[13]) || 0);   // 영업이익
+
+        updateCharts(labels, revenue, opProfit, marketShare, stockPrice);
+        updateTable(headers, data.slice(-5)); // 최근 5개 행만 표시
     }
 
-    // 30초마다 자동 갱신
-    setInterval(updateDashboard, 30000);
-    updateDashboard();
+    function updateCharts(labels, revenue, opProfit, marketShare, stockPrice) {
+        // 메인 차트 (매출 & 영업이익)
+        const ctx1 = document.getElementById('chart_main').getContext('2d');
+        if (mainChart) mainChart.destroy();
+        mainChart = new Chart(ctx1, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    { label: '매출', data: revenue, borderColor: '#007bff', backgroundColor: 'rgba(0,123,255,0.1)', fill: true, tension: 0.3 },
+                    { label: '영업이익', data: opProfit, borderColor: '#28a745', fill: false, tension: 0.3 }
+                ]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+
+        // 서브 차트 (주가 & 점유율)
+        const ctx2 = document.getElementById('chart_sub').getContext('2d');
+        if (subChart) subChart.destroy();
+        subChart = new Chart(ctx2, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    { label: '주가', data: stockPrice, backgroundColor: '#ffc107', yAxisID: 'y' },
+                    { label: '점유율(%)', data: marketShare, type: 'line', borderColor: '#dc3545', yAxisID: 'y1' }
+                ]
+            },
+            options: { 
+                scales: { 
+                    y: { position: 'left', title: { display: true, text: '주가' } },
+                    y1: { position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: '점유율(%)' } }
+                }
+            }
+        });
+    }
+
+    function updateTable(headers, lastRows) {
+        let html = '<table class="data-table"><thead><tr>';
+        // 분기, 점유율, 주가, 매출, 영업이익 열만 표시
+        [0, 1, 2, 12, 13].forEach(idx => html += `<th>${headers[idx]}</th>`);
+        html += '</tr></thead><tbody>';
+
+        lastRows.reverse().forEach(row => {
+            html += '<tr>';
+            [0, 1, 2, 12, 13].forEach(idx => {
+                let val = row[idx];
+                if (!isNaN(val) && idx !== 0) val = Number(val).toLocaleString();
+                html += `<td>${val}</td>`;
+            });
+            html += '</tr>';
+        });
+        html += '</tbody></table>';
+        document.getElementById('table_container').innerHTML = html;
+    }
+
+    // 20초마다 시트 데이터를 새로 읽어옴
+    setInterval(fetchSpreadsheetData, 20000);
+    fetchSpreadsheetData();
 </script>
 
 </body>
