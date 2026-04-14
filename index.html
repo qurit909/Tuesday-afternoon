@@ -226,8 +226,22 @@
                 data: {
                     labels: data.map(d => d.분기),
                     datasets: [
-                        { label: '매출액(억)', data: data.map(d => d.매출액/100000000), backgroundColor: '#3b82f6', borderRadius: 4 },
-                        { label: '순이익(억)', data: data.map(d => d.순이익/100000000), type: 'line', borderColor: '#f43f5e', pointBackgroundColor: '#f43f5e', tension: 0.3 }
+                        { 
+                            label: '순이익(억)', 
+                            data: data.map(d => d.순이익/100000000), 
+                            type: 'line', 
+                            borderColor: '#f43f5e', 
+                            pointBackgroundColor: '#f43f5e', 
+                            tension: 0.3,
+                            order: 1 // 선 그래프를 상단으로 (작을수록 위)
+                        },
+                        { 
+                            label: '매출액(억)', 
+                            data: data.map(d => d.매출액/100000000), 
+                            backgroundColor: '#3b82f6', 
+                            borderRadius: 4,
+                            order: 2 // 막대 그래프를 하단으로
+                        }
                     ]
                 },
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
