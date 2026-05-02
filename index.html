@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>전사 경영 실적 대시보드 (Real-time)</title>
+    <title>전사 경영 실적 대시보드 (v2.5 Cash Integrated)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
@@ -12,6 +12,7 @@
         body { font-family: 'Pretendard', sans-serif; background-color: #f8fafc; }
         .card-stat { transition: transform 0.2s; }
         .card-stat:hover { transform: translateY(-4px); }
+        .custom-shadow { box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.02); }
     </style>
 </head>
 <body class="p-4 md:p-8">
@@ -19,83 +20,101 @@
         <!-- 상단 헤더 -->
         <header class="mb-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
-                <h1 class="text-3xl font-extrabold text-slate-900">🚀 전사 경영 실적 대시보드</h1>
-                <p class="text-slate-500 mt-1">지정된 스프레드시트 열 이름 최적화 버전 (v2.4)</p>
+                <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
+                    🚀 전사 경영 실적 대시보드
+                </h1>
+                <p class="text-slate-500 mt-1 font-medium">실시간 데이터 동기화 기반 재무·운영 인사이트 (Cash Flow 추가됨)</p>
             </div>
             <div class="flex items-center gap-3">
-                <span id="syncStatus" class="text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100 italic">
-                    연결 확인 중...
+                <span id="syncStatus" class="text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-100 flex items-center gap-1.5">
+                    <span class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+                    데이터 연결 확인 중...
                 </span>
-                <button onclick="fetchSheetData()" class="bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-semibold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200">
+                <button onclick="fetchSheetData()" class="bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-semibold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 active:scale-95">
                     지금 동기화
                 </button>
             </div>
         </header>
 
         <!-- 핵심 지표 요약 (KPI) -->
-        <div id="kpiContainer" class="grid grid-cols-2 lg:grid-cols-6 gap-4 mb-10">
-            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 animate-pulse h-24"></div>
-            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 animate-pulse h-24"></div>
-            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 animate-pulse h-24"></div>
-            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 animate-pulse h-24"></div>
-            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 animate-pulse h-24"></div>
-            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 animate-pulse h-24"></div>
+        <div id="kpiContainer" class="grid grid-cols-2 lg:grid-cols-7 gap-4 mb-10">
+            <!-- Loading Placeholders -->
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 animate-pulse h-28"></div>
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 animate-pulse h-28"></div>
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 animate-pulse h-28"></div>
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 animate-pulse h-28"></div>
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 animate-pulse h-28"></div>
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 animate-pulse h-28"></div>
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 animate-pulse h-28"></div>
         </div>
 
         <!-- 메인 분석 차트 영역 -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
             <!-- 재무 분석 -->
-            <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
-                <h4 class="text-lg font-bold mb-6 flex items-center gap-2">
-                    <span class="w-2 h-6 bg-blue-500 rounded-full"></span> 재무 성장 및 이익 지수
+            <div class="bg-white p-6 rounded-3xl custom-shadow border border-slate-100">
+                <h4 class="text-lg font-bold mb-6 flex justify-between items-center">
+                    <span class="flex items-center gap-2"><span class="w-2 h-6 bg-blue-500 rounded-full"></span> 재무 성장 및 현금성 자산</span>
+                    <span class="text-xs text-slate-400 font-normal">단위: 억 원</span>
                 </h4>
-                <div class="h-[300px]">
+                <div class="h-[320px]">
                     <canvas id="financeChart"></canvas>
                 </div>
-                <p id="financeInsight" class="mt-4 text-sm text-slate-500 italic"></p>
+                <div class="mt-4 p-4 bg-blue-50 rounded-2xl border border-blue-100">
+                    <p id="financeInsight" class="text-sm text-blue-800 font-medium"></p>
+                </div>
             </div>
             
             <!-- 운영 분석 -->
-            <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
-                <h4 class="text-lg font-bold mb-6 flex items-center gap-2">
-                    <span class="w-2 h-6 bg-emerald-500 rounded-full"></span> 생산·판매·재고 밸런스
+            <div class="bg-white p-6 rounded-3xl custom-shadow border border-slate-100">
+                <h4 class="text-lg font-bold mb-6 flex justify-between items-center">
+                    <span class="flex items-center gap-2"><span class="w-2 h-6 bg-emerald-500 rounded-full"></span> 생산·판매·재고 밸런스</span>
+                    <span class="text-xs text-slate-400 font-normal">단위: 개/건</span>
                 </h4>
-                <div class="h-[300px]">
+                <div class="h-[320px]">
                     <canvas id="opsChart"></canvas>
                 </div>
-                <p id="opsInsight" class="mt-4 text-sm text-slate-500 italic"></p>
+                <div class="mt-4 p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
+                    <p id="opsInsight" class="text-sm text-emerald-800 font-medium"></p>
+                </div>
             </div>
 
             <!-- HR 분석 -->
-            <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+            <div class="bg-white p-6 rounded-3xl custom-shadow border border-slate-100">
                 <h4 class="text-lg font-bold mb-6 flex items-center gap-2">
                     <span class="w-2 h-6 bg-purple-500 rounded-full"></span> 인력 구성 및 변동 추이
                 </h4>
-                <div class="h-[300px]">
+                <div class="h-[320px]">
                     <canvas id="hrChart"></canvas>
                 </div>
-                <p id="hrInsight" class="mt-4 text-sm text-slate-500 italic"></p>
+                <div class="mt-4 p-4 bg-purple-50 rounded-2xl border border-purple-100">
+                    <p id="hrInsight" class="text-sm text-purple-800 font-medium"></p>
+                </div>
             </div>
 
             <!-- 효율성 분석 -->
-            <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+            <div class="bg-white p-6 rounded-3xl custom-shadow border border-slate-100">
                 <h4 class="text-lg font-bold mb-6 flex items-center gap-2">
                     <span class="w-2 h-6 bg-orange-500 rounded-full"></span> R&D 투자 vs 제조원가 추이
                 </h4>
-                <div class="h-[300px]">
+                <div class="h-[320px]">
                     <canvas id="efficiencyChart"></canvas>
                 </div>
-                <p id="rdInsight" class="mt-4 text-sm text-slate-500 italic"></p>
+                <div class="mt-4 p-4 bg-orange-50 rounded-2xl border border-orange-100">
+                    <p id="rdInsight" class="text-sm text-orange-800 font-medium"></p>
+                </div>
             </div>
         </div>
 
         <!-- 하단 데이터 분석 요약 -->
-        <div class="bg-slate-900 rounded-3xl p-8 text-white shadow-2xl">
-            <div class="flex items-center gap-3 mb-6">
-                <span class="text-2xl">🔍</span>
-                <h3 class="text-xl font-bold">경영 분석 통합 인사이트</h3>
+        <div class="bg-slate-900 rounded-3xl p-8 text-white shadow-2xl relative overflow-hidden">
+            <div class="absolute top-0 right-0 p-8 opacity-10">
+                <svg width="120" height="120" fill="currentColor" viewBox="0 0 24 24"><path d="M13 9V3.5L18.5 9M6 2C4.89 2 4 2.89 4 4V20C4 21.11 4.89 22 6 22H18C19.11 22 20 21.11 20 20V8L14 2H6Z"></path></svg>
             </div>
-            <div id="totalInsight" class="grid grid-cols-1 md:grid-cols-2 gap-8 text-slate-300">
+            <div class="flex items-center gap-3 mb-8 relative z-10">
+                <span class="text-2xl bg-indigo-500/30 p-2 rounded-lg">🔍</span>
+                <h3 class="text-2xl font-bold">경영 분석 통합 인사이트</h3>
+            </div>
+            <div id="totalInsight" class="grid grid-cols-1 md:grid-cols-2 gap-12 text-slate-300 relative z-10 leading-relaxed">
                 데이터를 분석하고 있습니다...
             </div>
         </div>
@@ -106,7 +125,6 @@
         
         let charts = {};
 
-        // 안전하게 숫자로 변환
         function safeNumber(val) {
             if (val === null || val === undefined || val === '') return 0;
             if (typeof val === 'number') return val;
@@ -115,7 +133,6 @@
             return isNaN(num) ? 0 : num;
         }
 
-        // 사용자가 정의한 정확한 열 이름 매핑
         function getVal(row, keys) {
             for (let key of keys) {
                 if (row[key] !== undefined) return row[key];
@@ -128,7 +145,7 @@
 
         async function fetchSheetData() {
             const statusEl = document.getElementById('syncStatus');
-            statusEl.innerText = '동기화 중...';
+            statusEl.innerHTML = '<span class="w-2 h-2 bg-indigo-500 rounded-full animate-ping"></span> 동기화 중...';
             try {
                 const response = await fetch(CSV_URL + '&cb=' + new Date().getTime());
                 if (!response.ok) throw new Error('시트 연결 실패');
@@ -140,23 +157,23 @@
                     complete: function(results) {
                         if(results.data && results.data.length > 0) {
                             renderDashboard(results.data);
-                            statusEl.innerText = '✅ 업데이트: ' + new Date().toLocaleTimeString();
+                            statusEl.innerHTML = '<span class="w-2 h-2 bg-emerald-500 rounded-full"></span> 업데이트: ' + new Date().toLocaleTimeString();
                         }
                     }
                 });
             } catch (error) {
                 console.error(error);
-                statusEl.innerText = '❌ 연결 실패';
+                statusEl.innerHTML = '<span class="w-2 h-2 bg-rose-500 rounded-full"></span> 연결 실패';
             }
         }
 
         function renderDashboard(rawData) {
-            // 사용자 요청 열 이름 기반 매핑
             const processedData = rawData.map(item => ({
                 분기: getVal(item, ['분기']),
                 매출액: safeNumber(getVal(item, ['매출액'])),
                 순이익: safeNumber(getVal(item, ['순이익'])),
                 주가: safeNumber(getVal(item, ['주가'])),
+                기말현금: safeNumber(getVal(item, ['기말현금'])), // 기말현금 필드 추가
                 연구개발비: safeNumber(getVal(item, ['연구개발비'])),
                 판매량: safeNumber(getVal(item, ['판매량'])),
                 브랜드등급: safeNumber(getVal(item, ['브랜드등급'])),
@@ -174,24 +191,22 @@
             const latest = processedData[processedData.length - 1];
             const prev = processedData.length > 1 ? processedData[processedData.length - 2] : latest;
 
-            // KPI 카드 (매출, 이익, 주가, 브랜드, 재고, 원가)
+            // KPI 카드 (현금 포함 7개 항목)
             const kpiContainer = document.getElementById('kpiContainer');
             kpiContainer.innerHTML = `
                 ${createKPICard('매출액', (latest.매출액/100000000).toFixed(1) + '억', latest.매출액, prev.매출액, 'text-slate-800')}
-                ${createKPICard('순이익', (latest.순이익/100000000).toFixed(1) + '억', latest.순이익, prev.순이익, 'text-rose-500')}
+                ${createKPICard('순이익', (latest.순이익/100000000).toFixed(1) + '억', latest.순이익, prev.순이익, 'text-rose-600')}
+                ${createKPICard('기말현금', (latest.기말현금/100000000).toFixed(1) + '억', latest.기말현금, prev.기말현금, 'text-blue-600')}
                 ${createKPICard('주가', latest.주가.toLocaleString() + '원', latest.주가, prev.주가, 'text-indigo-600')}
-                ${createKPICard('브랜드등급', latest.브랜드등급 + '등급', latest.브랜드등급, prev.브랜드등급, 'text-emerald-600', true)}
-                ${createKPICard('기말재고량', latest.기말재고량.toLocaleString(), latest.기말재고량, prev.기말재고량, 'text-amber-600', false, true)}
-                ${createKPICard('단위당제조원가', latest.단위당제조원가.toLocaleString() + '원', latest.단위당제조원가, prev.단위당제조원가, 'text-slate-700', false, true)}
+                ${createKPICard('브랜드', latest.브랜드등급 + '등급', latest.브랜드등급, prev.브랜드등급, 'text-emerald-600', true)}
+                ${createKPICard('기말재고', latest.기말재고량.toLocaleString(), latest.기말재고량, prev.기말재고량, 'text-amber-600', false, true)}
+                ${createKPICard('제조원가', latest.단위당제조원가.toLocaleString() + '원', latest.단위당제조원가, prev.단위당제조원가, 'text-slate-700', false, true)}
             `;
 
-            // 차트 렌더링
             updateFinanceChart(processedData);
             updateOpsChart(processedData);
             updateHRChart(processedData);
             updateEfficiencyChart(processedData);
-            
-            // 분석 인사이트
             generateAdvancedInsights(processedData);
         }
 
@@ -201,19 +216,21 @@
             let trendHtml = '';
             if (diff > 0) {
                 const color = (isInverse || isCost) ? 'text-rose-500' : 'text-emerald-500';
-                trendHtml = `<span class="${color} text-[10px] font-bold">▲ ${diffPercent}%</span>`;
+                trendHtml = `<span class="${color} text-[11px] font-bold">▲ ${diffPercent}%</span>`;
             } else if (diff < 0) {
                 const color = (isInverse || isCost) ? 'text-emerald-500' : 'text-rose-500';
-                trendHtml = `<span class="${color} text-[10px] font-bold">▼ ${Math.abs(diffPercent)}%</span>`;
+                trendHtml = `<span class="${color} text-[11px] font-bold">▼ ${Math.abs(diffPercent)}%</span>`;
             } else {
-                trendHtml = `<span class="text-slate-400 text-[10px] font-bold">- 0%</span>`;
+                trendHtml = `<span class="text-slate-400 text-[11px] font-bold">- 0%</span>`;
             }
 
             return `
-                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 card-stat">
-                    <p class="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">${title}</p>
-                    <h3 class="${colorClass} text-xl font-bold truncate">${value}</h3>
-                    <div class="mt-1">${trendHtml}</div>
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 card-stat flex flex-col justify-between">
+                    <div>
+                        <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1">${title}</p>
+                        <h3 class="${colorClass} text-lg font-extrabold truncate">${value}</h3>
+                    </div>
+                    <div class="mt-2 pt-2 border-t border-slate-50">${trendHtml}</div>
                 </div>
             `;
         }
@@ -227,24 +244,46 @@
                     labels: data.map(d => d.분기),
                     datasets: [
                         { 
-                            label: '순이익(억)', 
+                            label: '기말현금', 
+                            data: data.map(d => d.기말현금/100000000), 
+                            type: 'line', 
+                            borderColor: '#3b82f6', 
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            fill: true,
+                            tension: 0.4,
+                            pointStyle: 'circle',
+                            pointRadius: 4,
+                            order: 1
+                        },
+                        { 
+                            label: '순이익', 
                             data: data.map(d => d.순이익/100000000), 
                             type: 'line', 
                             borderColor: '#f43f5e', 
-                            pointBackgroundColor: '#f43f5e', 
+                            borderDash: [5, 5],
                             tension: 0.3,
-                            order: 1 // 선 그래프를 상단으로 (작을수록 위)
+                            order: 2
                         },
                         { 
-                            label: '매출액(억)', 
+                            label: '매출액', 
                             data: data.map(d => d.매출액/100000000), 
-                            backgroundColor: '#3b82f6', 
-                            borderRadius: 4,
-                            order: 2 // 막대 그래프를 하단으로
+                            backgroundColor: '#e2e8f0', 
+                            borderRadius: 6,
+                            order: 3
                         }
                     ]
                 },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    plugins: { 
+                        legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 6, font: { size: 11 } } } 
+                    },
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: '#f1f5f9' } },
+                        x: { grid: { display: false } }
+                    }
+                }
             });
         }
 
@@ -256,12 +295,17 @@
                 data: {
                     labels: data.map(d => d.분기),
                     datasets: [
-                        { label: '생산량', data: data.map(d => d.생산량), borderColor: '#10b981', fill: false },
-                        { label: '판매량', data: data.map(d => d.판매량), borderColor: '#6366f1', fill: false },
-                        { label: '기말재고량', data: data.map(d => d.기말재고량), borderColor: '#f59e0b', borderDash: [5, 5] }
+                        { label: '생산량', data: data.map(d => d.생산량), borderColor: '#10b981', tension: 0.3, fill: false },
+                        { label: '판매량', data: data.map(d => d.판매량), borderColor: '#6366f1', tension: 0.3, fill: false },
+                        { label: '기말재고', data: data.map(d => d.기말재고량), borderColor: '#f59e0b', borderDash: [4, 4] }
                     ]
                 },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    plugins: { legend: { position: 'top' } },
+                    scales: { y: { grid: { color: '#f1f5f9' } } }
+                }
             });
         }
 
@@ -290,16 +334,16 @@
                 data: {
                     labels: data.map(d => d.분기),
                     datasets: [
-                        { label: '연구개발비(억)', data: data.map(d => d.연구개발비/100000000), borderColor: '#0ea5e9', yAxisID: 'y1' },
-                        { label: '단위당제조원가(원)', data: data.map(d => d.단위당제조원가), borderColor: '#f97316', yAxisID: 'y' }
+                        { label: 'R&D(억)', data: data.map(d => d.연구개발비/100000000), borderColor: '#0ea5e9', yAxisID: 'y1', tension: 0.3 },
+                        { label: '원가(원)', data: data.map(d => d.단위당제조원가), borderColor: '#f97316', yAxisID: 'y', tension: 0.3 }
                     ]
                 },
                 options: { 
                     responsive: true, 
                     maintainAspectRatio: false,
                     scales: {
-                        y: { position: 'left', title: { display: true, text: '원가(원)' } },
-                        y1: { position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'R&D(억)' } }
+                        y: { position: 'left', title: { display: true, text: '원가' } },
+                        y1: { position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'R&D' } }
                     }
                 }
             });
@@ -309,27 +353,43 @@
             const latest = data[data.length - 1];
             const prev = data.length > 1 ? data[data.length - 2] : latest;
 
+            // 현금 및 수익성 지표
             const profitMargin = latest.매출액 > 0 ? (latest.순이익 / latest.매출액 * 100).toFixed(1) : 0;
-            document.getElementById('financeInsight').innerText = `영업 효율성: 현재 이익률은 ${profitMargin}%를 기록 중입니다.`;
+            const cashFlowColor = latest.기말현금 > prev.기말현금 ? "상승" : "하락";
+            document.getElementById('financeInsight').innerText = `💰 현금 흐름: 기말현금이 전분기 대비 ${cashFlowColor}세에 있으며, 현재 순이익률은 ${profitMargin}%입니다.`;
 
+            // 재고 지표
             const invRatio = (latest.기말재고량 / (latest.판매량 + 1)).toFixed(2);
-            document.getElementById('opsInsight').innerText = invRatio > 1.2 ? "재고 주의: 판매 대비 재고가 높습니다." : "재고 안정: 수급 밸런스가 적절합니다.";
+            document.getElementById('opsInsight').innerText = invRatio > 1.2 ? "⚠️ 재고 경고: 판매량 대비 재고 수준이 과도합니다. 생산 조절이 필요합니다." : "✅ 수급 안정: 재고 회전이 원활하며 판매 밸런스가 좋습니다.";
 
             const attrition = (latest.퇴직직원수 / (latest.영업직원수 + 1) * 100).toFixed(1);
-            document.getElementById('hrInsight').innerText = `조직 진단: 이탈률 ${attrition}%로 인력 관리가 필요한 시점입니다.`;
+            document.getElementById('hrInsight').innerText = `👥 인력 리스크: 퇴직률 ${attrition}%입니다. 조직 안정화 대책을 검토하십시오.`;
 
             const costDiff = prev.단위당제조원가 - latest.단위당제조원가;
-            document.getElementById('rdInsight').innerText = costDiff > 0 ? `원가 절감: 전분기 대비 ${costDiff.toLocaleString()}원 감소되었습니다.` : "원가 관리: 제조원가 상승 요인을 분석하십시오.";
+            document.getElementById('rdInsight').innerText = costDiff > 0 ? `📉 원가 개선: R&D 투자 효과로 원가가 ${costDiff.toLocaleString()}원 절감되었습니다.` : "📈 원가 관리: 제조 원가가 상승하고 있습니다. 공정 효율화를 검토하십시오.";
 
             const totalInsight = document.getElementById('totalInsight');
+            const cashStatus = latest.기말현금 > latest.매출액 * 0.2 ? "우수" : "주의";
+            
             totalInsight.innerHTML = `
-                <div>
-                    <h4 class="text-white font-bold mb-2">📊 종합 실적 분석</h4>
-                    <p>${latest.분기} 매출액은 ${(latest.매출액/100000000).toFixed(1)}억 원이며, 연구개발비 투입 대비 원가 개선 효과를 모니터링 중입니다.</p>
+                <div class="space-y-4">
+                    <h4 class="text-white text-lg font-bold flex items-center gap-2">
+                        <span class="w-1.5 h-5 bg-indigo-500 rounded-full"></span> 재무 건전성 리포트
+                    </h4>
+                    <p class="text-slate-400">
+                        현재 <span class="text-white font-semibold">${latest.분기}</span> 기준 기말현금 보유액은 <span class="text-white font-semibold">${(latest.기말현금/100000000).toFixed(1)}억 원</span>으로 현금 유동성 수준은 <span class="text-indigo-400 font-bold">${cashStatus}</span> 상태입니다. 
+                        순이익의 흐름과 기말현금의 상관관계를 볼 때, 영업 활동을 통한 현금 창출 능력이 안정적으로 유지되고 있습니다.
+                    </p>
                 </div>
-                <div>
-                    <h4 class="text-white font-bold mb-2">🎯 경영 제언</h4>
-                    <p>브랜드등급이 ${latest.브랜드등급}단계이므로 마케팅 강화가 필요하며, 판매관리비 효율화를 통해 순이익 구조를 개선해야 합니다.</p>
+                <div class="space-y-4">
+                    <h4 class="text-white text-lg font-bold flex items-center gap-2">
+                        <span class="w-1.5 h-5 bg-emerald-500 rounded-full"></span> 전략적 의사결정 제언
+                    </h4>
+                    <ul class="text-slate-400 space-y-2 list-disc ml-4">
+                        <li>브랜드 가치가 <span class="text-white">${latest.브랜드등급}등급</span>인 점을 고려해 마케팅 예산 증액을 검토하십시오.</li>
+                        <li>확보된 <span class="text-white">현금 자산</span>을 기반으로 차기 분기 R&D 투자를 확대하여 원가 경쟁력을 선점할 것을 권고합니다.</li>
+                        <li>기말재고 <span class="text-white">${latest.기말재고량.toLocaleString()}개</span>의 빠른 소진을 위한 프로모션 기획이 필요합니다.</li>
+                    </ul>
                 </div>
             `;
         }
